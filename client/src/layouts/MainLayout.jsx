@@ -1,10 +1,14 @@
+import Navbar from "@/pages/Home/Navbar";
+import { Outlet } from "react-router-dom";
 
 
 const MainLayout = () => {
   return (
     <div>
-      <header>This is navbar</header>
-      <main>This is main</main>
+      <Navbar />
+      <main className="max-h-screen">
+        <Outlet />
+      </main>
     </div>
   );
 };
