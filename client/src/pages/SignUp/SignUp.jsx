@@ -5,10 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import useAuth from "@/hooks/useAuth";
+import { saveUser } from "@/Utilities/Utiliti";
 
 
 const SignUp = () => {
+  const { createNewUser, signInWithGoogle,  updateUserProfile, } = useAuth();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -20,7 +24,27 @@ const SignUp = () => {
   const onSubmit = async (data) => {
     const { name, email, password, } = data;
     const image = "https://i.ibb.co.com/Jwn4D7vk/user.jpg"
+
+    try {
+      const result = await createNewUser(email, password);
+      await updateUserProfile(name, image);
+      await saveUser({ ...result?.user, displayName: name, photoURL: image });
+      navigate('/dashboard');
+    } catch (error) {
+      console.log(error?.message);
+    }
   };
+
+  // Google Signin
+  const handleGoogleSignIn = async () => {
+    try {
+      const data = await signInWithGoogle()
+      await saveUser(data?.user)
+      navigate('/dashboard');
+    } catch (err) {
+      console.log(err?.message);
+    }
+  }
 
 
 
@@ -89,7 +113,7 @@ const SignUp = () => {
                       message: "Password must be at least 6 characters",
                     },
                     pattern: {
-                      value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]$/,
+                      value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/,
                       message: "Password must have at least one uppercase, one lowercase letter, one digit and special character",
                     },
                   })}
@@ -131,6 +155,7 @@ const SignUp = () => {
 
           {/* Google Login Button */}
           <Button
+           onClick={handleGoogleSignIn}
             size={"lg"}
             className="w-full"
             variant={"outline"}

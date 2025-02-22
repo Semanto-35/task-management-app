@@ -5,10 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import useAuth from "@/hooks/useAuth";
+import { saveUser } from "@/Utilities/Utiliti";
 
 const Login = () => {
+  const { signInUser, signInWithGoogle, user, } = useAuth();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const location = useLocation()
+  const from = location?.state?.from?.pathname || '/dashboard'
 
   const {
     register,
@@ -19,7 +25,26 @@ const Login = () => {
   const onSubmit = async (data) => {
     const { email, password, } = data;
 
+    try {
+      await signInUser(email, password);
+      navigate(from, { replace: true });
+    } catch (err) {
+      console.log(err?.message);
+    }
   };
+
+  // Google Signin
+  const handleGoogleSignIn = async () => {
+    try {
+      const data = await signInWithGoogle()
+      await saveUser(data?.user)
+      navigate(from, { replace: true });
+    } catch (err) {
+      console.log(err?.message);
+    }
+  }
+
+  if (user) return <Navigate to={from} replace={true} />
 
 
   return (
@@ -104,12 +129,13 @@ const Login = () => {
           {/* Divider */}
           <div className="flex items-center my-4">
             <div className="flex-grow border-t border-gray-300"></div>
-            <span className="mx-2 text-gray-500">or</span>
+            <span className="mx-2 text-gray-700">or</span>
             <div className="flex-grow border-t border-gray-300"></div>
           </div>
 
           {/* Google Login Button */}
           <Button
+          onClick={handleGoogleSignIn}
             size={"lg"}
             className="w-full"
             variant={"outline"}
