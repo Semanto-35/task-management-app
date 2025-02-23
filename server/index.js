@@ -13,8 +13,8 @@ const cookieParser = require('cookie-parser');
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    "https://task-management-app-dbfe3.web.app/",
-    "https://task-management-app-dbfe3.firebaseapp.com/",
+    "https://task-management-15020.web.app/",
+    "https://task-management-15020.firebaseapp.com/",
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
   allowedHeaders: [
@@ -98,7 +98,6 @@ async function run() {
       }
     });
 
-
     // save a user in DB
     app.post('/users/:email', async (req, res) => {
       const email = req.params.email
@@ -116,12 +115,104 @@ async function run() {
       res.send(result);
     });
 
+    // Get all tasks for a user
+    app.get('/tasks', async (req, res) => {
+      try {
+        const { userId } = req.query;
+        const tasks = await tasksCollection
+          .find({ userId })
+          .sort({ timestamp: -1 })
+          .toArray();
+
+        res.send(tasks);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }
+    });
+
+    // save a new task
+    app.post('/tasks', async (req, res) => {
+      try {
+        const formData = req.body;
+        const result = await tasksCollection.insertOne(formData);
+        res.send(result);
+      } catch (error) {
+        res.status(400).json({ error: error.message });
+      }
+    });
+
+    // Update task details
+    app.put("/tasks/:id", async (req, res) => {
+      const { id } = req.params;
+      const { title, description, category } = req.body;
+      try {
+        const result = await tasksCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { title, description, category } }
+        );
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ error: "Task not found" });
+        }
+        res.send({ message: "Task updated successfully" });
+      } catch (err) {
+        res.status(400).json({ error: err.message });
+      }
+    });
+
+
+    // Delete a task
+    app.delete("/tasks/:id", async (req, res) => {
+      const { id } = req.params;
+      try {
+        const result = await tasksCollection.deleteOne({ _id: new ObjectId(id) });
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ error: "Task not found" });
+        }
+        res.send({ message: "Task deleted successfully" });
+      } catch (err) {
+        res.status(400).json({ error: err.message });
+      }
+    });
+
+
+  
+    app.put('/tasks/reorder', async (req, res) => {
+      try {
+        const { tasks } = req.body;
+
+        // Use a session for atomic updates
+        const session = client.startSession();
+
+        try {
+          await session.withTransaction(async () => {
+            for (const task of tasks) {
+              await db.collection('tasks').updateOne(
+                { _id: new ObjectId(task.id), userId: req.user.uid },
+                { $set: { category: task.category, position: task.position } },
+                { session }
+              );
+            }
+          });
+
+          await session.endSession();
+          res.json({ message: 'Tasks reordered successfully' });
+        } catch (error) {
+          await session.abortTransaction();
+          throw error;
+        }
+      } catch (error) {
+        res.status(400).json({ error: error.message });
+      }
+    });
+
+
+
 
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
